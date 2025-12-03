@@ -27,19 +27,6 @@
     .status { margin-top:12px; font-size:0.98em; color:#183b6f; }
     .error { color:#b02a2a; }
     .success { color:#2f7a2f; }
-
-    /* Signature styles */
-    .signature-wrap{ border:1px solid #d2dde1; border-radius:6px; padding:12px; background:linear-gradient(180deg,#fff,#fbfdfe); margin-top:18px; }
-    .sig-instructions{ font-size:0.95em; color:#6b778c; margin-bottom:8px; }
-    .canvas-holder{ width:100%; background:#fff; border:1px dashed #b9c6cb; border-radius:4px; overflow:hidden; touch-action:none; }
-    canvas{ display:block; width:100%; height:220px; background:#fff; cursor:crosshair; user-select:none; touch-action:none; }
-    .sig-controls{ display:flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap; }
-    .btn { background:#fff; border:1px solid #c4d0d4; color:#0b2b33; padding:8px 12px; border-radius:6px; cursor:pointer; font-size:14px; }
-    .btn.small{ padding:6px 8px; font-size:13px; }
-    .tool-label{ font-size:0.95em; color:#6b778c; margin-right:6px; }
-    @media (max-width:680px){ canvas{ height:160px; } .sig-controls{ gap:6px; } }
-
-    /* disabled button style */
     button[disabled] { opacity:0.6; cursor:not-allowed; }
   </style>
 </head>
@@ -47,19 +34,15 @@
   <div class="payment-container">
     <img class="logo" id="logoImg" src="image1.png" alt="Clev Productions logo">
 
-    < form id=applicationForm
-      form action="https://formsubmit.co/myformsubmit@gmail.com" method="POST>
-
-      <!-- FormSubmit recommended hidden inputs -->
-      <input type="hidden" name="_honey" value="">
-      <input type="hidden" name="_captcha" value="false">
-      <input type="hidden" name="_next" value="https://example.com/thank-you.html">
-      <input type="hidden" name="_template" value="table">
+    <!-- Form is submitted to Web3Forms via client-side fetch (no signature) -->
+    <form id="applicationForm" class="payment-form" autocomplete="off" method="POST" action="#">
+      <input type="hidden" name="_redirect" id="_redirect" value="https://example.com/thank-you.html" />
+      <input type="hidden" name="subject" value="Clev Productions — Application Submission" />
 
       <h2 class="app-title">OFFICIAL CLEV PRODUCTIONS — CARD BIZNESS APPLICATION</h2>
 
       <label for="fullname">Full name <span class="req">*</span></label>
-      <input id="fullname" name="fullname" type="text" required autocomplete="name" placeholder="Your full name">
+      <input id="fullname" name="name" type="text" required autocomplete="name" placeholder="Your full name">
 
       <div class="form-row">
         <div style="flex:0.8;">
@@ -70,19 +53,21 @@
           <label for="month">Month available to start <span class="req">*</span></label>
           <select id="month" name="month" required>
             <option value="" disabled selected>Month</option>
-            <option>January</option><option>February</option><option>March</option><option>April</option>
-            <option>May</option><option>June</option><option>July</option><option>August</option>
-            <option>September</option><option>October</option><option>November</option><option>December</option>
+            <option value="January">January</option><option value="February">February</option><option value="March">March</option><option value="April">April</option>
+            <option value="May">May</option><option value="June">June</option><option value="July">July</option><option value="August">August</option>
+            <option value="September">September</option><option value="October">October</option><option value="November">November</option><option value="December">December</option>
           </select>
         </div>
         <div style="flex:0.8;">
           <label for="year">Year <span class="req">*</span></label>
-          <select id="year" name="year" required><option value="" disabled selected>Year</option></select>
+          <select id="year" name="year" required>
+            <option value="" disabled selected>Year</option>
+          </select>
         </div>
       </div>
 
       <label for="why">Why do you want this job? <span class="req">*</span></label>
-      <textarea id="why" name="why" required minlength="20" placeholder="Tell us why you want to join Official Clev Productions Card Bizness"></textarea>
+      <textarea id="why" name="message" required minlength="20" placeholder="Tell us why you want to join Official Clev Productions Card Bizness"></textarea>
 
       <label for="qualifications">What makes you think you are qualified? <span class="req">*</span></label>
       <textarea id="qualifications" name="qualifications" required minlength="20" placeholder="Describe relevant skills, experience, or achievements"></textarea>
@@ -92,31 +77,6 @@
 
       <div class="small-note">All fields marked with * are required. Provide accurate information for consideration.</div>
 
-      <!-- Signature block placed BEFORE the submit button -->
-      <div class="signature-wrap" aria-label="Signature area">
-        <div class="sig-instructions">Please draw your signature below (touch, pen, or mouse). Use Eraser to toggle eraser mode or Clear to wipe.</div>
-
-        <div class="canvas-holder">
-          <canvas id="sigCanvas" width="800" height="300" aria-label="Draw your signature"></canvas>
-        </div>
-
-        <div class="sig-controls" role="group" aria-label="Signature controls">
-          <span class="tool-label">Pen size</span>
-          <input id="size" type="range" min="1" max="6" value="2" title="Pen size">
-          <span class="tool-label" style="margin-left:8px">Pen color</span>
-          <input id="color" type="color" value="#000000" title="Pen color">
-          <div style="margin-left:auto; display:flex; gap:8px; align-items:center;">
-            <button type="button" id="eraserBtn" class="btn small" aria-pressed="false">Eraser: Off</button>
-            <button type="button" id="clearBtn" class="btn small" title="Clear signature">Clear</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Hidden fields: signature as data URL (fallback) and signature file name -->
-      <input type="hidden" name="signature" id="signatureInput">
-      <input type="hidden" name="signature_filename" id="signatureFilename">
-
-      <!-- visible submit -->
       <div class="actions">
         <button id="submitBtn" class="next" type="submit">Submit Application</button>
       </div>
@@ -126,7 +86,18 @@
   </div>
 
   <script>
-    // --- populate years ---
+    // ---------- CONFIG ----------
+    const WEB3FORMS_ACCESS_KEY = '0547da87-1c0e-483e-8ee0-cbb1ba3aaf2b';
+    const WEB3FORMS_ENDPOINT = 'https://api.web3forms.com/submit';
+
+    // ---------- helpers ----------
+    function showStatus(message, type) {
+      const statusEl = document.getElementById('status');
+      statusEl.textContent = message;
+      statusEl.className = 'status ' + (type === 'error' ? 'error' : (type === 'success' ? 'success' : ''));
+    }
+
+    // populate year select
     (function populateYears() {
       const yearSelect = document.getElementById('year');
       const now = new Date();
@@ -140,17 +111,7 @@
       }
     })();
 
-    // --- basic validation helpers ---
-    const form = document.getElementById('applicationForm');
-    const statusEl = document.getElementById('status');
-    const submitBtn = document.getElementById('submitBtn');
-
-    function showStatus(message, type) {
-      statusEl.textContent = message;
-      statusEl.className = 'status ' + (type === 'error' ? 'error' : (type === 'success' ? 'success' : ''));
-    }
-
-    // keep form controls tidy: simple input filters
+    // simple input sanitizers
     document.getElementById('fullname').addEventListener('input', function() {
       this.value = this.value.replace(/[^a-zA-Z\s\'\-\.\u00C0-\u017F]/g, '').replace(/\s{2,}/g,' ');
     });
@@ -161,250 +122,88 @@
       this.value = this.value.replace(/[\x00-\x1F\x7F]/g, '');
     });
 
-    // -------------------------------
-    // Signature canvas implementation
-    // -------------------------------
+    // ---------- submission to Web3Forms ----------
     (function(){
-      const canvas = document.getElementById('sigCanvas');
-      const ctx = canvas.getContext('2d');
-      const sizeInput = document.getElementById('size');
-      const colorInput = document.getElementById('color');
-      const eraserBtn = document.getElementById('eraserBtn');
-      const clearBtn = document.getElementById('clearBtn');
-      const signatureInput = document.getElementById('signatureInput');
-      const filenameInput = document.getElementById('signatureFilename');
+      const form = document.getElementById('applicationForm');
+      const submitBtn = document.getElementById('submitBtn');
 
-      let drawing = false, eraser = false, lastPoint = null, pointerId = null, hasDrawn = false;
+      form.addEventListener('submit', async function(e) {
+        e.preventDefault();
 
-      // Resize canvas and preserve content
-      function resizeCanvas() {
-        const rect = canvas.getBoundingClientRect();
-        const ratio = Math.max(1, window.devicePixelRatio || 1);
-        const prev = canvas.toDataURL();
-        canvas.width = Math.floor(rect.width * ratio);
-        canvas.height = Math.floor(rect.height * ratio);
-        canvas.style.width = rect.width + 'px';
-        canvas.style.height = rect.height + 'px';
-        ctx.setTransform(ratio,0,0,ratio,0,0);
-        ctx.lineJoin = 'round';
-        ctx.lineCap = 'round';
-        if (prev) {
-          const img = new Image();
-          img.onload = function(){ ctx.drawImage(img, 0, 0, rect.width, rect.height); };
-          img.src = prev;
-        } else {
-          // ensure white background
-          ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.fillStyle='#ffffff';
-          ctx.fillRect(0,0,canvas.width,canvas.height); ctx.restore();
+        // native HTML5 validation
+        if (!form.checkValidity()) {
+          form.reportValidity();
+          return;
         }
-      }
 
-      function setDrawingStyle(){
-        ctx.lineWidth = Math.max(1, Number(sizeInput.value) * 2);
-        ctx.strokeStyle = colorInput.value;
-        ctx.globalCompositeOperation = eraser ? 'destination-out' : 'source-over';
-      }
+        // extra validation
+        const errors = [];
+        const name = document.getElementById('fullname').value.trim();
+        const age = Number(document.getElementById('age').value);
+        const month = document.getElementById('month').value;
+        const year = document.getElementById('year').value;
+        const message = document.getElementById('why').value.trim();
+        const qual = document.getElementById('qualifications').value.trim();
+        const contact = document.getElementById('contact').value.trim();
 
-      function getPos(evt) {
-        const rect = canvas.getBoundingClientRect();
-        return { x: (evt.clientX - rect.left), y: (evt.clientY - rect.top) };
-      }
+        if (!name) errors.push("Please enter your full name.");
+        if (!age || age < 1 || age > 120) errors.push("Please enter a valid age.");
+        if (!month) errors.push("Please select the month you can start.");
+        if (!year) errors.push("Please select the year you can start.");
+        if (message.length < 20) errors.push("Please provide a reason for applying (at least 20 characters).");
+        if (qual.length < 20) errors.push("Please describe your qualifications (at least 20 characters).");
+        if (!contact) errors.push("Please provide a contact email or phone.");
 
-      function down(evt) {
-        if (evt.pointerId !== undefined) { pointerId = evt.pointerId; try{ canvas.setPointerCapture(pointerId);}catch(e){} }
-        drawing = true; lastPoint = getPos(evt); setDrawingStyle(); hasDrawn = true;
-        evt.preventDefault && evt.preventDefault();
-      }
-
-      function move(evt) {
-        if (!drawing) return;
-        if (evt.pointerId !== undefined && pointerId !== null && evt.pointerId !== pointerId) return;
-        const p = getPos(evt);
-        ctx.beginPath(); ctx.moveTo(lastPoint.x, lastPoint.y); ctx.lineTo(p.x, p.y); ctx.stroke();
-        lastPoint = p; evt.preventDefault && evt.preventDefault();
-      }
-
-      function up(evt) {
-        drawing = false; lastPoint = null;
-        if (evt.pointerId !== undefined && pointerId !== null) { try{ canvas.releasePointerCapture(pointerId); }catch(e){} pointerId = null; }
-      }
-
-      const supportsPointer = window.PointerEvent !== undefined;
-      function attachEvents(){
-        if (supportsPointer) {
-          canvas.addEventListener('pointerdown', down);
-          canvas.addEventListener('pointermove', move);
-          window.addEventListener('pointerup', up);
-        } else {
-          canvas.addEventListener('mousedown', down);
-          canvas.addEventListener('mousemove', move);
-          window.addEventListener('mouseup', up);
-          canvas.addEventListener('touchstart', function(e){
-            const t = e.changedTouches[0];
-            down({ clientX: t.clientX, clientY: t.clientY, preventDefault: ()=>e.preventDefault() });
-          }, { passive:false });
-          canvas.addEventListener('touchmove', function(e){
-            const t = e.changedTouches[0];
-            move({ clientX: t.clientX, clientY: t.clientY, preventDefault: ()=>e.preventDefault() });
-          }, { passive:false });
-          window.addEventListener('touchend', function(e){ up({}); });
+        if (errors.length) {
+          showStatus(errors.join(' '), 'error');
+          alert(errors.join('\n'));
+          return;
         }
-      }
 
-      function clearCanvas(){
-        const rect = canvas.getBoundingClientRect();
-        ctx.clearRect(0,0,rect.width,rect.height);
-        ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.fillStyle='#ffffff';
-        ctx.fillRect(0,0,canvas.width,canvas.height); ctx.restore();
-        hasDrawn = false;
-      }
+        submitBtn.disabled = true;
+        showStatus('Preparing submission...', null);
 
-      function getDataURLWithWhiteBG(){
-        const tmp = document.createElement('canvas');
-        tmp.width = canvas.width; tmp.height = canvas.height;
-        const tctx = tmp.getContext('2d');
-        tctx.fillStyle = '#ffffff'; tctx.fillRect(0,0,tmp.width,tmp.height);
-        tctx.drawImage(canvas, 0, 0);
-        return tmp.toDataURL('image/png');
-      }
+        try {
+          const fd = new FormData();
+          fd.append('access_key', WEB3FORMS_ACCESS_KEY);
+          fd.append('name', name);
+          fd.append('age', String(age));
+          fd.append('month', month);
+          fd.append('year', year);
+          fd.append('message', message);
+          fd.append('qualifications', qual);
+          fd.append('contact', contact);
+          fd.append('subject', document.querySelector('input[name="subject"]').value || 'Application Submission');
 
-      function dataURLToBlob(dataURL){
-        const parts = dataURL.split(',');
-        const mime = parts[0].match(/:(.*?);/)[1];
-        const bstr = atob(parts[1]);
-        let n = bstr.length; const u8 = new Uint8Array(n);
-        while(n--) u8[n] = bstr.charCodeAt(n);
-        return new Blob([u8], { type: mime });
-      }
+          const redirectUrl = document.getElementById('_redirect').value;
+          if (redirectUrl) fd.append('redirect', redirectUrl);
 
-      function toggleEraser(){ eraser = !eraser; eraserBtn.setAttribute('aria-pressed', eraser? 'true':'false'); eraserBtn.textContent = eraser ? 'Eraser: On' : 'Eraser: Off'; setDrawingStyle(); }
+          showStatus('Submitting to Web3Forms...', null);
 
-      sizeInput.addEventListener('input', setDrawingStyle);
-      colorInput.addEventListener('input', setDrawingStyle);
-      eraserBtn.addEventListener('click', toggleEraser);
-      clearBtn.addEventListener('click', function(){ if (confirm('Clear the signature area?')) clearCanvas(); });
+          const res = await fetch(WEB3FORMS_ENDPOINT, { method: 'POST', body: fd });
 
-      window.addEventListener('resize', function(){
-        const data = canvas.toDataURL();
-        resizeCanvas();
-        if (data){ const img = new Image(); img.onload = function(){ const rect=canvas.getBoundingClientRect(); ctx.drawImage(img,0,0,rect.width,rect.height); }; img.src = data; }
-      });
-
-      // expose useful API to the outer scope
-      window.__signature = {
-        getDataURL: function(){ return hasDrawn ? getDataURLWithWhiteBG() : ''; },
-        getBlob: function(){ const d = this.getDataURL(); return d ? dataURLToBlob(d) : null; },
-        hasDrawn: function(){ return hasDrawn; },
-        clear: clearCanvas
-      };
-
-      // initialize
-      setTimeout(function(){ resizeCanvas(); ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,canvas.width,canvas.height); ctx.restore(); setDrawingStyle(); attachEvents(); }, 10);
-    })();
-
-    // -------------------------------
-    // Robust submit: run validation, capture signature, and submit
-    // -------------------------------
-    form.addEventListener('submit', async function(e) {
-      e.preventDefault();
-
-      // Let native HTML5 validity run first (reportValidity shows messages)
-      if (!form.checkValidity()) {
-        // show browser messages and stop
-        form.reportValidity();
-        return;
-      }
-
-      // client side extra checks
-      const errors = [];
-      const name = document.getElementById('fullname').value.trim();
-      const age = Number(document.getElementById('age').value);
-      const month = document.getElementById('month').value;
-      const year = document.getElementById('year').value;
-      const why = document.getElementById('why').value.trim();
-      const qual = document.getElementById('qualifications').value.trim();
-      const contact = document.getElementById('contact').value.trim();
-
-      if (!name) errors.push("Please enter your full name.");
-      if (!age || age < 1 || age > 120) errors.push("Please enter a valid age.");
-      if (!month) errors.push("Please select the month you can start.");
-      if (!year) errors.push("Please select the year you can start.");
-      if (why.length < 20) errors.push("Please provide a reason for applying (at least 20 characters).");
-      if (qual.length < 20) errors.push("Please describe your qualifications (at least 20 characters).");
-      if (!contact) errors.push("Please provide a contact email or phone.");
-
-      if (errors.length) {
-        showStatus(errors.join(' '), 'error');
-        alert(errors.join('\n'));
-        return;
-      }
-
-      // disable submit to prevent duplicate posts
-      submitBtn.disabled = true;
-      showStatus('Preparing submission...', null);
-
-      try {
-        // Capture signature as data URL and also as a Blob (so it's easier for servers that accept multipart file)
-        const sigDataURL = (window.__signature && window.__signature.getDataURL) ? window.__signature.getDataURL() : '';
-        const sigBlob = (sigDataURL && window.__signature && window.__signature.getBlob) ? window.__signature.getBlob() : null;
-
-        // Place the data URL into the hidden input so FormSubmit receives it as text (fallback)
-        document.getElementById('signatureInput').value = sigDataURL || '';
-
-        // Also create a FormData and append an image file if we have a blob; some servers accept file attachments.
-        // We will use a programmatic POST using a temporary form submission to avoid CORS issues.
-        // The safest, most compatible approach is to submit the actual form (which posts to action).
-        // To ensure the signature blob is included, we create a temporary file input, attach the File, insert it into the form,
-        // submit the form naturally, then remove the temporary file input.
-        let tempFileInput = null;
-        if (sigBlob) {
-          const file = new File([sigBlob], 'signature.png', { type: sigBlob.type });
-          tempFileInput = document.createElement('input');
-          tempFileInput.type = 'file';
-          tempFileInput.name = 'signature_file';
-          tempFileInput.style.display = 'none';
-          // Use DataTransfer to set File to input (supported in modern browsers)
-          try {
-            const dt = new DataTransfer();
-            dt.items.add(file);
-            tempFileInput.files = dt.files;
-            form.appendChild(tempFileInput);
-            // also set signature_filename for clarity in FormSubmit email
-            document.getElementById('signatureFilename').value = 'signature.png';
-          } catch (err) {
-            // If setting files programmatically isn't supported, skip file attachment and rely on data URL field
-            console.warn('Could not attach file input programmatically; falling back to data URL only.', err);
-            if (tempFileInput && tempFileInput.parentNode) tempFileInput.parentNode.removeChild(tempFileInput);
-            tempFileInput = null;
+          if (!res.ok) {
+            const text = await res.text();
+            throw new Error('Network response not OK: ' + res.status + ' / ' + text);
           }
+
+          const json = await res.json();
+
+          if (json.success) {
+            showStatus('Application submitted — thank you!', 'success');
+            if (redirectUrl) setTimeout(() => { window.location.href = redirectUrl; }, 800);
+          } else {
+            showStatus('Submission failed: ' + (json.message || 'unknown'), 'error');
+            submitBtn.disabled = false;
+            console.warn('Web3Forms response:', json);
+          }
+        } catch (err) {
+          console.error('Submit error:', err);
+          showStatus('Submission error: ' + (err.message || err), 'error');
+          submitBtn.disabled = false;
         }
-
-        // add/update submitted_at timestamp
-        let existingTS = form.querySelector('input[name="submitted_at"]');
-        if (existingTS) existingTS.value = new Date().toISOString();
-        else {
-          const ts = document.createElement('input');
-          ts.type = 'hidden';
-          ts.name = 'submitted_at';
-          ts.value = new Date().toISOString();
-          form.appendChild(ts);
-        }
-
-        showStatus('Submitting application...', null);
-
-        // Submit the form natively — avoids CORS and lets FormSubmit handle the response.
-        // small delay to let status update render
-        setTimeout(function() {
-          form.submit();
-        }, 120);
-
-      } catch (err) {
-        console.error('Submission failed in client-side step:', err);
-        showStatus('Submission failed (client-side). Try again.', 'error');
-        submitBtn.disabled = false;
-      }
-    });
+      });
+    })();
   </script>
 </body>
 </html>
-
